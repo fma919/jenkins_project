@@ -1,4 +1,4 @@
-"""Simple local deployment: copies the app into a 'deploy' folder and runs it."""
+"""Simple local deployment: copy the app to 'deploy' and run it."""
 import os
 import shutil
 import subprocess  # nosec B404
