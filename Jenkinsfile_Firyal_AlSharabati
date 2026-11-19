@@ -1,0 +1,99 @@
+pipeline {
+    agent any
+
+    environment {
+        VIRTUAL_ENV = 'venv'
+    }
+
+    stages {
+        stage('Setup') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        if (!fileExists("${env.WORKSPACE}/${VIRTUAL_ENV}")) {
+                            sh "python3 -m venv ${VIRTUAL_ENV}"
+                        }
+                        sh "${VIRTUAL_ENV}/bin/python -m pip install -r requirements.txt"
+                    } else {
+                        if (!fileExists("${env.WORKSPACE}\\${VIRTUAL_ENV}")) {
+                            bat "python -m venv ${VIRTUAL_ENV}"
+                        }
+                        bat "${VIRTUAL_ENV}\\Scripts\\python -m pip install -r requirements.txt"
+                    }
+                }
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh "${VIRTUAL_ENV}/bin/python -m flake8 app.py deploy.py"
+                    } else {
+                        bat "${VIRTUAL_ENV}\\Scripts\\python -m flake8 app.py deploy.py"
+                    }
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh "${VIRTUAL_ENV}/bin/python -m pytest"
+                    } else {
+                        bat "${VIRTUAL_ENV}\\Scripts\\python -m pytest"
+                    }
+                }
+            }
+        }
+
+        stage('Coverage') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh "${VIRTUAL_ENV}/bin/python -m coverage run -m pytest"
+                        sh "${VIRTUAL_ENV}/bin/python -m coverage report -m"
+                        sh "${VIRTUAL_ENV}/bin/python -m coverage html"
+                    } else {
+                        bat "${VIRTUAL_ENV}\\Scripts\\python -m coverage run -m pytest"
+                        bat "${VIRTUAL_ENV}\\Scripts\\python -m coverage report -m"
+                        bat "${VIRTUAL_ENV}\\Scripts\\python -m coverage html"
+                    }
+                }
+                archiveArtifacts artifacts: 'htmlcov/**', allowEmptyArchive: true
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                script {
+                    if (isUnix()) {
+                        sh "${VIRTUAL_ENV}/bin/python -m bandit -r app.py deploy.py"
+                    } else {
+                        bat "${VIRTUAL_ENV}\\Scripts\\python -m bandit -r app.py deploy.py"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+                    echo "Deploying application..."
+                    if (isUnix()) {
+                        sh "${VIRTUAL_ENV}/bin/python deploy.py"
+                    } else {
+                        bat "${VIRTUAL_ENV}\\Scripts\\python deploy.py"
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
